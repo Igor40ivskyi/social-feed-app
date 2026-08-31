@@ -1,10 +1,17 @@
 import { useGetPosts } from '@/api/hooks/useGetPosts';
 import { PostCard } from '@/components/PostCard';
+import { useDebounce } from '@/hooks/useDebounce';
 import { colors } from '@/styles/global';
-import { ActivityIndicator, FlatList, StyleSheet, Text } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const SEARCH_DEBOUNCE_MS = 450;
+
 export default function HomeScreen() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
+
   const {
     data,
     isLoading,
@@ -14,7 +21,7 @@ export default function HomeScreen() {
     isFetchingNextPage,
     refetch,
     isRefetching
-  } = useGetPosts();
+  } = useGetPosts(debouncedSearchQuery);
 
   if (isLoading) {
     return (
@@ -36,10 +43,25 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search posts..."
+          placeholderTextColor={colors.textSecondary}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+      </View>
       <FlatList
         data={posts}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) {
             fetchNextPage();
@@ -50,6 +72,13 @@ export default function HomeScreen() {
           isFetchingNextPage ? (
             <ActivityIndicator color={colors.primary} style={styles.footer} />
           ) : null
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {debouncedSearchQuery
+              ? `No posts found for '${debouncedSearchQuery}'`
+              : 'No posts available'}
+          </Text>
         }
         renderItem={({ item }) => (
           <PostCard
@@ -80,13 +109,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.header,
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    color: colors.text,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+  },
   list: {
     padding: 16,
+    flexGrow: 1,
   },
   footer: {
     marginVertical: 16,
   },
   error: {
     color: colors.alert,
+  },
+  empty: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 24,
   },
 });

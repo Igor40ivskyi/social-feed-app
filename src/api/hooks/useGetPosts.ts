@@ -22,15 +22,25 @@ type PostsResponse = {
 
 const POSTS_LIMIT = 30;
 
-export const useGetPosts = () => {
+const getPosts = async (search: string, skip: number) => {
+  const trimmedSearch = search.trim();
+
+  const { data } = await apiClient.get<PostsResponse>(
+    trimmedSearch ? '/posts/search' : '/posts',
+    {
+      params: trimmedSearch
+        ? { q: trimmedSearch, limit: POSTS_LIMIT, skip }
+        : { limit: POSTS_LIMIT, skip },
+    }
+  );
+
+  return data;
+};
+
+export const useGetPosts = (searchQuery: string = '') => {
   return useInfiniteQuery({
-    queryKey: ['posts'],
-    queryFn: async ({ pageParam }) => {
-      const { data } = await apiClient.get<PostsResponse>('/posts', {
-        params: { limit: POSTS_LIMIT, skip: pageParam },
-      });
-      return data;
-    },
+    queryKey: ['posts', 'infinite', searchQuery],
+    queryFn: ({ pageParam }) => getPosts(searchQuery, pageParam),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       const nextSkip = lastPage.skip + lastPage.limit;
