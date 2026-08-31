@@ -1,6 +1,7 @@
 import {colors} from '@/styles/global';
-import {StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {Tag} from '@/components/ui/Tag';
+import {useRouter} from 'expo-router';
 
 type PostCardProps = {
   postId: number
@@ -20,6 +21,8 @@ export function PostCard({postId,
                            dislikes,
                            tags,
                          }: PostCardProps) {
+  const router = useRouter();
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{postId}</Text>
@@ -33,6 +36,17 @@ export function PostCard({postId,
           <Tag key={tag} label={tag} />
         ))}
       </View>
+      <Pressable
+        style={styles.detailsButton}
+        onPress={() =>
+          router.push({
+            pathname: '/post-details',
+            params: { postId: String(postId), userId: String(userId) },
+          })
+        }
+      >
+        <Text style={styles.detailsButtonText}>Details</Text>
+      </Pressable>
     </View>
   );
 }
@@ -62,5 +76,18 @@ const styles = StyleSheet.create({
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+  detailsButton: {
+    marginTop: 12,
+    alignSelf: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  detailsButtonText: {
+    color: colors.background,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
