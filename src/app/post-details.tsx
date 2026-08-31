@@ -1,4 +1,5 @@
 import { useGetPost } from '@/api/hooks/useGetPost';
+import { PostComments } from '@/components/PostComments';
 import { UserDetails } from '@/components/UserDetails';
 import { Tag } from '@/components/ui/Tag';
 import { colors } from '@/styles/global';
@@ -44,6 +45,8 @@ export default function PostDetailsScreen() {
         </View>
 
         <UserDetails userId={Number(userId)} />
+
+        <PostComments postId={Number(postId)} />
       </ScrollView>
     </SafeAreaView>
   );
