@@ -1,9 +1,10 @@
 import {View, Text} from "react-native";
+import {SafeAreaView} from "react-native-safe-area-context";
 
 export default function Details () {
   return(
-    <View>
+    <SafeAreaView style={{ flex: 1 }}>
       <Text>Details Screen</Text>
-    </View>
+    </SafeAreaView>
   )
 }
