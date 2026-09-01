@@ -22,7 +22,7 @@ const createPost = async ({ title, body, tags }: CreatePostInput): Promise<Post>
   });
 
   return {
-    id: Date.now(),
+    id: -Date.now(),
     userId: CREATED_POST_USER_ID,
     title,
     body,

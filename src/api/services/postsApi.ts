@@ -25,3 +25,7 @@ export const fetchPostsFromApi = async (search: string, skip: number): Promise<P
 
   return data;
 };
+
+export const deletePostApi = async (postId: number): Promise<void> => {
+  await apiClient.delete(apiEndpoints.posts.delete(postId));
+};
