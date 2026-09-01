@@ -1,4 +1,4 @@
-import { Comment as CommentType } from '@/api/hooks/useGetPostComments';
+import { Comment as CommentType } from '@/types/comment';
 import { colors } from '@/styles/global';
 import { StyleSheet, Text, View } from 'react-native';
 

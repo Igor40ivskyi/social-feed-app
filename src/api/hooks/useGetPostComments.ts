@@ -1,17 +1,8 @@
 import { apiClient } from '@/api/client';
+import { apiEndpoints } from '@/api/endpoints';
+import { postKeys } from '@/api/keys/postKeys';
+import { Comment } from '@/types/comment';
 import { useQuery } from '@tanstack/react-query';
-
-export type Comment = {
-  id: number;
-  body: string;
-  postId: number;
-  likes: number;
-  user: {
-    id: number;
-    username: string;
-    fullName: string;
-  };
-};
 
 type CommentsResponse = {
   comments: Comment[];
@@ -22,9 +13,9 @@ type CommentsResponse = {
 
 export const useGetPostComments = (postId: number) => {
   return useQuery({
-    queryKey: ['posts', postId, 'comments'],
+    queryKey: postKeys.comments(postId),
     queryFn: async () => {
-      const { data } = await apiClient.get<CommentsResponse>(`/posts/${postId}/comments`);
+      const { data } = await apiClient.get<CommentsResponse>(apiEndpoints.posts.comments(postId));
       return data;
     },
   });

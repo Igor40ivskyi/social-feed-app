@@ -1,20 +1,14 @@
 import { apiClient } from '@/api/client';
+import { apiEndpoints } from '@/api/endpoints';
+import { userKeys } from '@/api/keys/userKeys';
+import { User } from '@/types/user';
 import { useQuery } from '@tanstack/react-query';
-
-export type User = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  username: string;
-  email: string;
-  image: string;
-};
 
 export const useGetUser = (userId: number) => {
   return useQuery({
-    queryKey: ['user', userId],
+    queryKey: userKeys.detail(userId),
     queryFn: async () => {
-      const { data } = await apiClient.get<User>(`/users/${userId}`);
+      const { data } = await apiClient.get<User>(apiEndpoints.users.detail(userId));
       return data;
     },
   });

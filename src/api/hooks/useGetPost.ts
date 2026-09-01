@@ -1,13 +1,28 @@
 import { apiClient } from '@/api/client';
-import { Post } from '@/api/hooks/useGetPosts';
+import { apiEndpoints } from '@/api/endpoints';
+import { postKeys } from '@/api/keys/postKeys';
+import { findLocalPostById, getUpdatedPostsMap } from '@/services/storage';
+import { Post } from '@/types/post';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 export const useGetPost = (postId: number) => {
   return useQuery({
-    queryKey: ['post', postId],
+    queryKey: postKeys.detail(postId),
     queryFn: async () => {
-      const { data } = await apiClient.get<Post>(`/posts/${postId}`);
-      return data;
+      try {
+        const { data } = await apiClient.get<Post>(apiEndpoints.posts.detail(postId));
+        return getUpdatedPostsMap()[postId] ?? data;
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          const localPost = findLocalPostById(postId);
+          if (localPost) {
+            return localPost;
+          }
+        }
+
+        throw error;
+      }
     },
   });
 };

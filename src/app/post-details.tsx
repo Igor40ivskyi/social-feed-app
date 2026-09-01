@@ -1,15 +1,20 @@
 import { useGetPost } from '@/api/hooks/useGetPost';
+import { useUpdatePost } from '@/api/hooks/useUpdatePost';
 import { PostComments } from '@/components/PostComments';
+import { PostFormModal } from '@/components/PostFormModal';
 import { UserDetails } from '@/components/UserDetails';
 import { Tag } from '@/components/ui/Tag';
 import { colors } from '@/styles/global';
 import { useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PostDetailsScreen() {
   const { postId, userId } = useLocalSearchParams<{ postId: string; userId: string }>();
   const { data: post, isLoading, isError } = useGetPost(Number(postId));
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const {mutate, isPending} = useUpdatePost();
 
   if (isLoading) {
     return (
@@ -30,7 +35,12 @@ export default function PostDetailsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{post.title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{post.title}</Text>
+          <Pressable style={styles.editButton} onPress={() => setEditModalVisible(true)}>
+            <Text style={styles.editButtonText}>Edit</Text>
+          </Pressable>
+        </View>
         <Text style={styles.body}>{post.body}</Text>
 
         <View style={styles.tags}>
@@ -48,6 +58,21 @@ export default function PostDetailsScreen() {
 
         <PostComments postId={Number(postId)} />
       </ScrollView>
+
+      <PostFormModal
+        visible={isEditModalVisible}
+        heading="Edit Post"
+        submitLabel="Save"
+        isSubmitting={isPending}
+        initialValues={{ title: post.title, body: post.body, tags: post.tags.join(', ') }}
+        onClose={() => setEditModalVisible(false)}
+        onSubmit={(values) => {
+          mutate(
+            { id: post.id, userId: post.userId, reactions: post.reactions, ...values },
+            { onSuccess: () => setEditModalVisible(false) }
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -66,11 +91,29 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   title: {
+    flex: 1,
     fontSize: 22,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+    marginRight: 12,
+  },
+  editButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  editButtonText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   body: {
     fontSize: 16,
