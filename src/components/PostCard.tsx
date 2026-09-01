@@ -5,6 +5,7 @@ import {useRouter} from 'expo-router';
 import {Ionicons} from '@expo/vector-icons';
 import {useState} from 'react';
 import {useDeletePost} from '@/api/hooks/useDeletePost';
+import {usePrefetchPostDetails} from '@/api/hooks/usePrefetchPostDetails';
 
 type PostCardProps = {
   postId: number
@@ -27,6 +28,7 @@ export function PostCard({postId,
   const router = useRouter();
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const deletePost = useDeletePost();
+  const prefetchPostDetails = usePrefetchPostDetails();
 
   return (
     <View style={styles.card}>
@@ -43,6 +45,7 @@ export function PostCard({postId,
       </View>
       <Pressable
         style={styles.detailsButton}
+        onPressIn={() => prefetchPostDetails(postId, userId)}
         onPress={() =>
           router.push({
             pathname: '/post-details',
