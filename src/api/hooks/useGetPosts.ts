@@ -1,7 +1,7 @@
 import { postKeys } from '@/api/keys/postKeys';
 import { queryTimes } from '@/api/queryTimes';
 import { getPostsWithLocalSync } from '@/services/postsService';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 
 export const useGetPosts = (searchQuery: string = '') => {
   return useInfiniteQuery({
@@ -14,5 +14,6 @@ export const useGetPosts = (searchQuery: string = '') => {
     },
     staleTime: queryTimes.postsFeed.staleTime,
     gcTime: queryTimes.postsFeed.gcTime,
+    placeholderData: keepPreviousData,
   });
 };
