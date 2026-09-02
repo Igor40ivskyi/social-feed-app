@@ -27,7 +27,7 @@ export function PostCard({postId,
                          }: PostCardProps) {
   const router = useRouter();
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const { mutate: deletePost, isPending: isDeleting } = useDeletePost();
+  const { mutate: deletePost, isPending: isDeleting } = useDeletePost(postId);
   const prefetchPostDetails = usePrefetchPostDetails();
 
   return (
@@ -90,9 +90,8 @@ export function PostCard({postId,
                 style={styles.confirmDeleteButton}
                 disabled={isDeleting}
                 onPress={() => {
-                  deletePost(postId, {
-                    onSuccess: () => setDeleteModalVisible(false),
-                  });
+                  setDeleteModalVisible(false);
+                  deletePost();
                 }}
               >
                 {isDeleting ? (
