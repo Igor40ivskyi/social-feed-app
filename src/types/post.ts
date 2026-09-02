@@ -9,3 +9,5 @@ export type Post = {
   };
   tags: string[];
 };
+
+export type LocalPost = Post;

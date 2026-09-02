@@ -1,17 +1,10 @@
 import { colors } from '@/styles/global';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-export type PostFormInitialValues = {
+export type PostFormValues = {
   title: string;
   body: string;
-  tags: string;
-};
-
-export type PostFormSubmitValues = {
-  title: string;
-  body: string;
-  tags: string[];
 };
 
 type PostFormModalProps = {
@@ -19,12 +12,10 @@ type PostFormModalProps = {
   heading: string;
   submitLabel: string;
   isSubmitting: boolean;
-  initialValues?: PostFormInitialValues;
+  initialValues: PostFormValues;
   onClose: () => void;
-  onSubmit: (values: PostFormSubmitValues) => void;
+  onSubmit: (values: PostFormValues) => void;
 };
-
-const EMPTY_VALUES: PostFormInitialValues = { title: '', body: '', tags: '' };
 
 export function PostFormModal({
   visible,
@@ -35,34 +26,17 @@ export function PostFormModal({
   onClose,
   onSubmit,
 }: PostFormModalProps) {
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [tags, setTags] = useState('');
-
-  useEffect(() => {
-    if (visible) {
-      const values = initialValues ?? EMPTY_VALUES;
-      setTitle(values.title);
-      setBody(values.body);
-      setTags(values.tags);
-    }
-  }, [visible, initialValues]);
+  const [title, setTitle] = useState(initialValues.title);
+  const [body, setBody] = useState(initialValues.body);
 
   const isValid = title.trim().length > 0 && body.trim().length > 0;
 
   const handleSubmit = () => {
-    if (!isValid) {
+    if (!isValid || isSubmitting) {
       return;
     }
 
-    onSubmit({
-      title: title.trim(),
-      body: body.trim(),
-      tags: tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-    });
+    onSubmit({ title: title.trim(), body: body.trim() });
   };
 
   return (
@@ -86,15 +60,6 @@ export function PostFormModal({
             placeholderTextColor={colors.textSecondary}
             multiline
             textAlignVertical="top"
-          />
-          <TextInput
-            style={styles.input}
-            value={tags}
-            onChangeText={setTags}
-            placeholder="Tags (comma-separated)"
-            placeholderTextColor={colors.textSecondary}
-            autoCapitalize="none"
-            autoCorrect={false}
           />
 
           <View style={styles.actions}>

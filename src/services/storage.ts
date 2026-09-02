@@ -1,5 +1,6 @@
 import { LocalComment } from '@/types/comment';
-import { Post } from '@/types/post';
+import { LocalPost, Post } from '@/types/post';
+import { isLocalPost } from '@/utils/postId';
 import { createMMKV } from 'react-native-mmkv';
 
 const storage = createMMKV();
@@ -26,10 +27,20 @@ export const getUpdatedPostsMap = (): Record<number, Post> => {
   return json ? JSON.parse(json) : {};
 };
 
-export const saveUpdatedPost = (post: Post): void => {
+const saveUpdatedPost = (post: Post): void => {
   const map = getUpdatedPostsMap();
   map[post.id] = post;
   storage.set(UPDATED_POSTS_KEY, JSON.stringify(map));
+};
+
+export const updateLocalPost = (updatedPost: LocalPost): void => {
+  if (isLocalPost(updatedPost.id)) {
+    const posts = getCreatedPosts().map((post) => (post.id === updatedPost.id ? updatedPost : post));
+    storage.set(CREATED_POSTS_KEY, JSON.stringify(posts));
+    return;
+  }
+
+  saveUpdatedPost(updatedPost);
 };
 
 export const findLocalPostById = (postId: number): Post | undefined => {

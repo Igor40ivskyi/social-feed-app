@@ -1,50 +1,98 @@
 import { apiClient } from '@/api/client';
 import { apiEndpoints } from '@/api/endpoints';
 import { postKeys } from '@/api/keys/postKeys';
-import { saveUpdatedPost } from '@/services/storage';
+import { PostsResponse } from '@/api/services/postsApi';
+import { updateLocalPost } from '@/services/storage';
 import { Post } from '@/types/post';
-import { InfiniteData, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isLocalPost } from '@/utils/postId';
+import { InfiniteData, QueryKey, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
 
 export type UpdatePostInput = {
-  id: number;
-  userId: number;
-  reactions: Post['reactions'];
   title: string;
   body: string;
-  tags: string[];
 };
 
-const updatePost = async ({ id, userId, reactions, title, body, tags }: UpdatePostInput): Promise<Post> => {
-  await apiClient.put(apiEndpoints.posts.detail(id), { title, body, tags });
-  return { id, userId, reactions, title, body, tags };
+type PostsListSnapshot = [QueryKey, InfiniteData<PostsResponse> | undefined][];
+
+type UpdatePostContext = {
+  previousPost: Post | undefined;
+  previousPostsList: PostsListSnapshot;
 };
 
-export const useUpdatePost = () => {
+const updatePostApi = async (postId: number, title: string, body: string): Promise<void> => {
+  if (isLocalPost(postId)) {
+    return;
+  }
+
+  await apiClient.put(apiEndpoints.posts.detail(postId), { title, body });
+};
+
+const replacePostInLists = (
+  data: InfiniteData<PostsResponse> | undefined,
+  updatedPost: Post
+): InfiniteData<PostsResponse> | undefined => {
+  if (!data) {
+    return data;
+  }
+
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      posts: page.posts.map((post) => (post.id === updatedPost.id ? updatedPost : post)),
+    })),
+  };
+};
+
+export const useUpdatePost = (postId: number) => {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: updatePost,
-    onSuccess: (updatedPost) => {
-      saveUpdatedPost(updatedPost);
+  return useMutation<void, unknown, UpdatePostInput, UpdatePostContext>({
+    mutationFn: ({ title, body }) => updatePostApi(postId, title, body),
+    onMutate: async ({ title, body }) => {
+      await queryClient.cancelQueries({ queryKey: postKeys.detail(postId) });
+      await queryClient.cancelQueries({ queryKey: postKeys.lists() });
 
-      queryClient.setQueryData(postKeys.detail(updatedPost.id), updatedPost);
+      const previousPost = queryClient.getQueryData<Post>(postKeys.detail(postId));
+      const previousPostsList = queryClient.getQueriesData<InfiniteData<PostsResponse>>({
+        queryKey: postKeys.lists(),
+      });
 
-      queryClient.setQueriesData<InfiniteData<{ posts: Post[]; total: number; skip: number; limit: number }>>(
-        { queryKey: postKeys.lists() },
-        (oldData) => {
-          if (!oldData) return oldData;
+      if (previousPost) {
+        const optimisticPost: Post = { ...previousPost, title, body };
 
-          return {
-            ...oldData,
-            pages: oldData.pages.map((page) => ({
-              ...page,
-              posts: page.posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
-            })),
-          };
-        }
-      );
+        queryClient.setQueryData<Post>(postKeys.detail(postId), optimisticPost);
 
-      queryClient.invalidateQueries({ queryKey: postKeys.all });
+        queryClient.setQueriesData<InfiniteData<PostsResponse>>({ queryKey: postKeys.lists() }, (old) =>
+          replacePostInLists(old, optimisticPost)
+        );
+
+        updateLocalPost(optimisticPost);
+      }
+
+      return { previousPost, previousPostsList };
+    },
+    onError: (_error, _input, context) => {
+      if (!context) {
+        return;
+      }
+
+      queryClient.setQueryData(postKeys.detail(postId), context.previousPost);
+
+      context.previousPostsList.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+
+      if (context.previousPost) {
+        updateLocalPost(context.previousPost);
+      }
+
+      Alert.alert('Failed to update post. Changes reverted.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: postKeys.detail(postId) });
+      queryClient.invalidateQueries({ queryKey: postKeys.lists() });
     },
   });
 };

@@ -14,7 +14,7 @@ export default function PostDetailsScreen() {
   const { postId, userId } = useLocalSearchParams<{ postId: string; userId: string }>();
   const { data: post, isLoading, isError } = useGetPost(Number(postId));
   const [isEditModalVisible, setEditModalVisible] = useState(false);
-  const {mutate, isPending} = useUpdatePost();
+  const { mutate: updatePost, isPending: isUpdating } = useUpdatePost(Number(postId));
 
   if (isLoading) {
     return (
@@ -60,17 +60,16 @@ export default function PostDetailsScreen() {
       </ScrollView>
 
       <PostFormModal
+        key={String(isEditModalVisible)}
         visible={isEditModalVisible}
         heading="Edit Post"
         submitLabel="Save"
-        isSubmitting={isPending}
-        initialValues={{ title: post.title, body: post.body, tags: post.tags.join(', ') }}
+        isSubmitting={isUpdating}
+        initialValues={{ title: post.title, body: post.body }}
         onClose={() => setEditModalVisible(false)}
         onSubmit={(values) => {
-          mutate(
-            { id: post.id, userId: post.userId, reactions: post.reactions, ...values },
-            { onSuccess: () => setEditModalVisible(false) }
-          );
+          updatePost(values);
+          setEditModalVisible(false);
         }}
       />
     </SafeAreaView>
