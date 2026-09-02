@@ -16,7 +16,7 @@ export const getCreatedPosts = (): Post[] => {
   return json ? JSON.parse(json) : [];
 };
 
-export const saveCreatedPost = (post: Post): void => {
+export const saveLocalPost = (post: Post): void => {
   const posts = getCreatedPosts();
   storage.set(CREATED_POSTS_KEY, JSON.stringify([post, ...posts]));
 };
@@ -41,7 +41,7 @@ export const findLocalPostById = (postId: number): Post | undefined => {
   return getCreatedPosts().find((post) => post.id === postId);
 };
 
-export const removeCreatedPost = (id: number): void => {
+export const deleteLocalPost = (id: number): void => {
   const posts = getCreatedPosts().filter((post) => post.id !== id);
   storage.set(CREATED_POSTS_KEY, JSON.stringify(posts));
 };

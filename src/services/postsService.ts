@@ -1,10 +1,10 @@
 import { deletePostApi, fetchPostsFromApi, PostsResponse } from '@/api/services/postsApi';
 import {
   addDeletedPostId,
+  deleteLocalPost,
   getCreatedPosts,
   getDeletedPostIds,
   getUpdatedPostsMap,
-  removeCreatedPost,
 } from '@/services/storage';
 import { isLocalPost } from '@/utils/postId';
 import { mergePostsWithLocalData } from '@/utils/postMerger';
@@ -29,7 +29,7 @@ export const getPostsWithLocalSync = async (search: string, skip: number): Promi
 
 export const deletePost = async (postId: number): Promise<void> => {
   if (isLocalPost(postId)) {
-    removeCreatedPost(postId);
+    deleteLocalPost(postId);
     return;
   }
 

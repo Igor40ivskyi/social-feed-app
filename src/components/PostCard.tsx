@@ -27,7 +27,7 @@ export function PostCard({postId,
                          }: PostCardProps) {
   const router = useRouter();
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
-  const deletePost = useDeletePost();
+  const { mutate: deletePost, isPending: isDeleting } = useDeletePost();
   const prefetchPostDetails = usePrefetchPostDetails();
 
   return (
@@ -59,10 +59,10 @@ export function PostCard({postId,
       <Pressable
         style={styles.deleteButton}
         onPress={() => setDeleteModalVisible(true)}
-        disabled={deletePost.isPending}
+        disabled={isDeleting}
         accessibilityLabel="Delete post"
       >
-        {deletePost.isPending ? (
+        {isDeleting ? (
           <ActivityIndicator size="small" color={colors.alert} />
         ) : (
           <Ionicons name="trash-outline" size={18} color={colors.alert} />
@@ -82,20 +82,20 @@ export function PostCard({postId,
               <Pressable
                 style={styles.cancelButton}
                 onPress={() => setDeleteModalVisible(false)}
-                disabled={deletePost.isPending}
+                disabled={isDeleting}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
               <Pressable
                 style={styles.confirmDeleteButton}
-                disabled={deletePost.isPending}
+                disabled={isDeleting}
                 onPress={() => {
-                  deletePost.mutate(postId, {
+                  deletePost(postId, {
                     onSuccess: () => setDeleteModalVisible(false),
                   });
                 }}
               >
-                {deletePost.isPending ? (
+                {isDeleting ? (
                   <ActivityIndicator size="small" color={colors.background} />
                 ) : (
                   <Text style={styles.confirmDeleteButtonText}>Delete</Text>

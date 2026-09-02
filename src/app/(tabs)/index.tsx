@@ -1,11 +1,9 @@
-import { useCreatePost } from '@/api/hooks/useCreatePost';
 import { useGetPosts } from '@/api/hooks/useGetPosts';
 import { PostCard } from '@/components/PostCard';
-import { PostFormModal } from '@/components/PostFormModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import { colors } from '@/styles/global';
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SEARCH_DEBOUNCE_MS = 450;
@@ -13,8 +11,6 @@ const SEARCH_DEBOUNCE_MS = 450;
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
-  const [isCreateModalVisible, setCreateModalVisible] = useState(false);
-  const createPost = useCreatePost();
 
   const {
     data,
@@ -59,13 +55,6 @@ export default function HomeScreen() {
           autoCorrect={false}
           autoCapitalize="none"
         />
-        <Pressable
-          style={styles.addButton}
-          onPress={() => setCreateModalVisible(true)}
-          accessibilityLabel="Create post"
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </Pressable>
       </View>
       <FlatList
         data={posts}
@@ -105,18 +94,6 @@ export default function HomeScreen() {
         refreshing={isRefetching}
         onRefresh={refetch}
       />
-      <PostFormModal
-        visible={isCreateModalVisible}
-        heading="Create Post"
-        submitLabel="Publish"
-        isSubmitting={createPost.isPending}
-        onClose={() => setCreateModalVisible(false)}
-        onSubmit={(values) => {
-          createPost.mutate(values, {
-            onSuccess: () => setCreateModalVisible(false),
-          });
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -147,21 +124,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 16,
-  },
-  addButton: {
-    marginLeft: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: colors.background,
-    fontSize: 20,
-    fontWeight: '700',
-    lineHeight: 22,
   },
   list: {
     padding: 16,

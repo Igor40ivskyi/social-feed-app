@@ -27,9 +27,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name='details'
         options={{
-          title: 'Details',
+          title: 'Create Post',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name='dice' size={size} color={color} />
+            <Ionicons name='add-circle' size={size} color={color} />
           ),
         }}
       />
