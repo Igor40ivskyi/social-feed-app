@@ -1,6 +1,14 @@
 import { colors } from '@/styles/global';
-import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  BottomSheetBackdrop,
+  BottomSheetBackdropProps,
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type CommentFormModalProps = {
   visible: boolean;
@@ -9,8 +17,21 @@ type CommentFormModalProps = {
   onSubmit: (body: string) => void;
 };
 
+const SNAP_POINTS = ['75%'];
+
 export function CommentFormModal({ visible, isSubmitting, onClose, onSubmit }: CommentFormModalProps) {
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const insets = useSafeAreaInsets();
+  const snapPoints = useMemo(() => SNAP_POINTS, []);
   const [body, setBody] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      sheetRef.current?.present();
+    } else {
+      sheetRef.current?.dismiss();
+    }
+  }, [visible]);
 
   const isValid = body.trim().length > 0;
 
@@ -28,55 +49,79 @@ export function CommentFormModal({ visible, isSubmitting, onClose, onSubmit }: C
     setBody('');
   };
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" />
+    ),
+    []
+  );
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.heading}>Add Comment</Text>
+    <BottomSheetModal
+      ref={sheetRef}
+      index={0}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      backgroundStyle={styles.sheetBackground}
+      handleIndicatorStyle={styles.handleIndicator}
+      backdropComponent={renderBackdrop}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize"
+      onDismiss={handleClose}
+    >
+      <BottomSheetScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.heading}>Add Comment</Text>
 
-          <TextInput
-            style={[styles.input, styles.multilineInput]}
-            value={body}
-            onChangeText={setBody}
-            placeholder="Write a comment..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            textAlignVertical="top"
-          />
+        <BottomSheetTextInput
+          style={[styles.input, styles.multilineInput]}
+          value={body}
+          onChangeText={setBody}
+          placeholder="Write a comment..."
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          textAlignVertical="top"
+          autoFocus
+        />
 
-          <View style={styles.actions}>
-            <Pressable style={styles.cancelButton} onPress={handleClose} disabled={isSubmitting}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.submitButton, (!isValid || isSubmitting) && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={!isValid || isSubmitting}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={colors.background} />
-              ) : (
-                <Text style={styles.submitButtonText}>Submit</Text>
-              )}
-            </Pressable>
-          </View>
+        <View style={[styles.actions, { paddingBottom: insets.bottom }]}>
+          <Pressable style={styles.cancelButton} onPress={handleClose} disabled={isSubmitting}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.submitButton, (!isValid || isSubmitting) && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!isValid || isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color={colors.background} />
+            ) : (
+              <Text style={styles.submitButtonText}>Submit</Text>
+            )}
+          </Pressable>
         </View>
-      </View>
-    </Modal>
+      </BottomSheetScrollView>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
+  sheetBackground: {
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
+  },
+  handleIndicator: {
+    backgroundColor: colors.textSecondary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   heading: {
     fontSize: 18,
@@ -94,7 +139,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   multilineInput: {
-    height: 100,
+    height: 140,
   },
   actions: {
     flexDirection: 'row',

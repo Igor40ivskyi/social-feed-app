@@ -1,14 +1,17 @@
-import {colors} from '@/styles/global';
-import {ActivityIndicator, Modal, Pressable, StyleSheet, Text, View} from 'react-native';
-import {Tag} from '@/components/ui/Tag';
-import {useRouter} from 'expo-router';
-import {Ionicons} from '@expo/vector-icons';
-import {useState} from 'react';
-import {useDeletePost} from '@/api/hooks/useDeletePost';
-import {usePrefetchPostDetails} from '@/api/hooks/usePrefetchPostDetails';
+import { useDeletePost } from '@/api/hooks/useDeletePost';
+import { usePrefetchPostDetails } from '@/api/hooks/usePrefetchPostDetails';
+import { useUpdatePost } from '@/api/hooks/useUpdatePost';
+import { PostFormModal } from '@/components/PostFormModal';
+import { Button } from '@/components/ui/Button';
+import { Tag } from '@/components/ui/Tag';
+import { colors } from '@/styles/global';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PostCardProps = {
-  postId: number
+  postId: number;
   title: string;
   body: string;
   userId: number;
@@ -17,23 +20,26 @@ type PostCardProps = {
   tags: string[];
 };
 
-export function PostCard({postId,
-                           title,
-                           body,
-                           userId,
-                           likes,
-                           dislikes,
-                           tags,
-                         }: PostCardProps) {
+export function PostCard({ postId, title, body, userId, likes, dislikes, tags }: PostCardProps) {
   const router = useRouter();
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isEditVisible, setEditVisible] = useState(false);
   const { mutate: deletePost, isPending: isDeleting } = useDeletePost(postId);
+  const { mutate: updatePost, isPending: isUpdating } = useUpdatePost(postId);
   const prefetchPostDetails = usePrefetchPostDetails();
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{postId}</Text>
-      <Text style={styles.title}>{title}</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{title}</Text>
+        <Pressable
+          style={styles.moreButton}
+          onPress={() => setEditVisible(true)}
+          accessibilityLabel="Edit post"
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+        </Pressable>
+      </View>
       <Text style={styles.body}>{body}</Text>
       <Text style={styles.meta}>Author: {userId}</Text>
       <Text style={styles.meta}>Likes: {likes}</Text>
@@ -43,7 +49,8 @@ export function PostCard({postId,
           <Tag key={tag} label={tag} />
         ))}
       </View>
-      <Pressable
+      <Button
+        label="Details"
         style={styles.detailsButton}
         onPressIn={() => prefetchPostDetails(postId, userId)}
         onPress={() =>
@@ -52,9 +59,7 @@ export function PostCard({postId,
             params: { postId: String(postId), userId: String(userId) },
           })
         }
-      >
-        <Text style={styles.detailsButtonText}>Details</Text>
-      </Pressable>
+      />
 
       <Pressable
         style={styles.deleteButton}
@@ -104,6 +109,20 @@ export function PostCard({postId,
           </View>
         </View>
       </Modal>
+
+      <PostFormModal
+        key={String(isEditVisible)}
+        visible={isEditVisible}
+        heading="Edit Post"
+        submitLabel="Save"
+        isSubmitting={isUpdating}
+        initialValues={{ title, body, tags }}
+        onClose={() => setEditVisible(false)}
+        onSubmit={(values) => {
+          updatePost(values);
+          setEditVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -115,11 +134,25 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
   title: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 6,
+    marginRight: 8,
+  },
+  moreButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   body: {
     fontSize: 14,
@@ -137,15 +170,6 @@ const styles = StyleSheet.create({
   detailsButton: {
     marginTop: 12,
     alignSelf: 'center',
-    backgroundColor: '#F0F0F0',
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-  detailsButtonText: {
-    color: colors.background,
-    fontSize: 13,
-    fontWeight: '600',
   },
   deleteButton: {
     position: 'absolute',

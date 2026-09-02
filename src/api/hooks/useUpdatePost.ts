@@ -11,6 +11,7 @@ import { Alert } from 'react-native';
 export type UpdatePostInput = {
   title: string;
   body: string;
+  tags: string[];
 };
 
 type PostsListSnapshot = [QueryKey, InfiniteData<PostsResponse> | undefined][];
@@ -20,12 +21,12 @@ type UpdatePostContext = {
   previousPostsList: PostsListSnapshot;
 };
 
-const updatePostApi = async (postId: number, title: string, body: string): Promise<void> => {
+const updatePostApi = async (postId: number, input: UpdatePostInput): Promise<void> => {
   if (isLocalPost(postId)) {
     return;
   }
 
-  await apiClient.put(apiEndpoints.posts.detail(postId), { title, body });
+  await apiClient.put(apiEndpoints.posts.detail(postId), input);
 };
 
 const replacePostInLists = (
@@ -49,18 +50,23 @@ export const useUpdatePost = (postId: number) => {
   const queryClient = useQueryClient();
 
   return useMutation<void, unknown, UpdatePostInput, UpdatePostContext>({
-    mutationFn: ({ title, body }) => updatePostApi(postId, title, body),
-    onMutate: async ({ title, body }) => {
+    mutationFn: (input) => updatePostApi(postId, input),
+    onMutate: async ({ title, body, tags }) => {
       await queryClient.cancelQueries({ queryKey: postKeys.detail(postId) });
       await queryClient.cancelQueries({ queryKey: postKeys.lists() });
 
-      const previousPost = queryClient.getQueryData<Post>(postKeys.detail(postId));
       const previousPostsList = queryClient.getQueriesData<InfiniteData<PostsResponse>>({
         queryKey: postKeys.lists(),
       });
 
+      const previousPost =
+        queryClient.getQueryData<Post>(postKeys.detail(postId)) ??
+        previousPostsList
+          .flatMap(([, data]) => data?.pages.flatMap((page) => page.posts) ?? [])
+          .find((post) => post.id === postId);
+
       if (previousPost) {
-        const optimisticPost: Post = { ...previousPost, title, body };
+        const optimisticPost: Post = { ...previousPost, title, body, tags };
 
         queryClient.setQueryData<Post>(postKeys.detail(postId), optimisticPost);
 

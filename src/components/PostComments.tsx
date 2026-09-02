@@ -2,9 +2,10 @@ import { useCreateComment } from '@/api/hooks/useCreateComment';
 import { useGetComments } from '@/api/hooks/useGetComments';
 import { Comment } from '@/components/Comment';
 import { CommentFormModal } from '@/components/CommentFormModal';
+import { Button } from '@/components/ui/Button';
 import { colors } from '@/styles/global';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 type PostCommentsProps = {
   postId: number;
@@ -19,9 +20,7 @@ export function PostComments({ postId }: PostCommentsProps) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.sectionTitle}>Comments</Text>
-        <Pressable style={styles.addButton} onPress={() => setFormVisible(true)}>
-          <Text style={styles.addButtonText}>Add Comment</Text>
-        </Pressable>
+        <Button label="Add Comment" onPress={() => setFormVisible(true)} />
       </View>
 
       {isLoading && (
@@ -47,6 +46,7 @@ export function PostComments({ postId }: PostCommentsProps) {
         data?.comments.map((comment) => <Comment key={comment.id} comment={comment} />)}
 
       <CommentFormModal
+        key={String(isFormVisible)}
         visible={isFormVisible}
         isSubmitting={isCreatingComment}
         onClose={() => setFormVisible(false)}
@@ -73,17 +73,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-  },
-  addButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  addButtonText: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
   },
   centered: {
     alignItems: 'center',
