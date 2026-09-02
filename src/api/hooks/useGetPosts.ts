@@ -1,4 +1,5 @@
 import { postKeys } from '@/api/keys/postKeys';
+import { queryTimes } from '@/api/queryTimes';
 import { getPostsWithLocalSync } from '@/services/postsService';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
@@ -11,5 +12,7 @@ export const useGetPosts = (searchQuery: string = '') => {
       const nextSkip = lastPage.skip + lastPage.limit;
       return nextSkip < lastPage.total ? nextSkip : undefined;
     },
+    staleTime: queryTimes.postsFeed.staleTime,
+    gcTime: queryTimes.postsFeed.gcTime,
   });
 };

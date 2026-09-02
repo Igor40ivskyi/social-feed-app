@@ -1,13 +1,13 @@
 import { apiClient } from '@/api/client';
 import { apiEndpoints } from '@/api/endpoints';
 import { postKeys } from '@/api/keys/postKeys';
+import { queryTimes } from '@/api/queryTimes';
 import { PostsResponse } from '@/api/services/postsApi';
 import { findLocalPostById, getUpdatedPostsMap } from '@/services/storage';
 import { Post } from '@/types/post';
 import { InfiniteData, QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
-// 💡 Затримка для штучної перевірки фонового запиту
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const findPlaceholderPost = (queryClient: QueryClient, postId: number): Post | undefined => {
@@ -52,5 +52,7 @@ export const useGetPost = (postId: number) => {
       }
     },
     placeholderData: () => findPlaceholderPost(queryClient, postId),
+    staleTime: queryTimes.postDetail.staleTime,
+    gcTime: queryTimes.postDetail.gcTime,
   });
 };

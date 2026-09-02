@@ -1,56 +1,256 @@
-# Welcome to your Expo app 👋
+# Social Feed
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Тестове завдання (React Native Developer): стрічка постів на **Expo SDK 57 + TypeScript + TanStack Query v5**, дані — [DummyJSON](https://dummyjson.com). Нижче — не тільки "що", а й "чому": рішення, компроміси і місця, де я свідомо зрізав кут.
 
-## Get started
+## Зміст
 
-1. Install dependencies
+- [Стек і чому саме так](#стек-і-чому-саме-так)
+- [Структура проєкту](#структура-проєкту)
+- [Expo Go vs development build](#expo-go-vs-development-build)
+- [State manager](#state-manager)
+- [Локальне сховище: AsyncStorage vs MMKV](#локальне-сховище-asyncstorage-vs-mmkv)
+- [Мердж локальних змін із сервером](#мердж-локальних-змін-із-сервером)
+- [TanStack Query](#tanstack-query)
+- [Optimistic updates + rollback](#optimistic-updates--rollback)
+- [Bottom sheet (@gorhom/bottom-sheet)](#bottom-sheet-gorhombottom-sheet)
+- [Списки: FlatList vs FlashList](#списки-flatlist-vs-flashlist)
+- [Навігація: Expo Router vs React Navigation](#навігація-expo-router-vs-react-navigation)
+- [Запуск проєкту](#запуск-проєкту)
+- [Свідомо зрізані кути / чого немає](#свідомо-зрізані-кути--чого-немає)
 
-   ```bash
-   npm install
-   ```
+## Стек і чому саме так
 
-2. Start the app
+Фіксований стеком завдання (Expo 57, TypeScript strict, TanStack Query v5, DummyJSON, React Native Keyboard Controller) — без змін. Із того, що "на розсуд":
 
-   ```bash
-   npx expo start
-   ```
+- **Expo Router** замість "голого" React Navigation — обґрунтування нижче.
+- **Без state-менеджера** — теж нижче.
+- **MMKV** як локальне сховище — вимагає development build, теж пояснено нижче.
+- **@gorhom/bottom-sheet v5** для форми створення/редагування поста і форми коментаря.
+- **FlatList**, не FlashList — обґрунтування в окремому розділі.
 
-In the output, you'll find options to open the app in a
+## Структура проєкту
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+src/
+  api/
+    client.ts            # axios-інстанс
+    endpoints.ts          # мапа REST-ендпоінтів DummyJSON
+    keys/                 # query keys (postKeys, commentKeys, userKeys)
+    queryTimes.ts          # staleTime/gcTime по типах даних, в одному місці
+    services/              # "тупі" HTTP-функції (без кешу, без бізнес-логіки)
+    hooks/                 # useQuery/useMutation-хуки — єдина точка входу для UI
+  services/                # бізнес-логіка рівня застосунку: мердж сервер+локальні дані
+  utils/                   # postMerger, postId (визначення "локальний/серверний пост")
+  components/              # презентаційні + контейнерні компоненти
+  app/                    # expo-router: тільки екрани й розкладка навігації
+  hooks/                  # UI-хуки загального призначення (useDebounce)
+  types/                  # доменні типи
+  styles/                  # спільна палітра/стилі
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Я свідомо **не** брав FSD чи іншу "важку" архітектуру — проєкт маленький (4 екрани, один домен "пости"), і feature-sliced розбиття на цьому масштабі додало б папок більше, ніж коду в них. Натомість розділяю за **технічною роллю**, а не за фічею:
 
-### Other setup steps
+- `api/` — усе, що каже "як дістати/змінити дані по мережі" (HTTP + TanStack хуки + query keys). UI ніколи не викликає `axios` чи `fetch` напряму.
+- `services/` — бізнес-правило, яке не належить ні транспорту, ні UI: "як показати користувачу серверні пости, змерджені з тим, що він створив/змінив/видалив локально".
+- `components/` та `app/` — суто UI. Екрани (`app/`) тонкі: дістають параметри роуту, викликають хуки з `api/hooks`, рендерять компоненти.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Це прямо реалізує єдину жорстку вимогу завдання — **API та бізнес-логіка поза UI-компонентами**: жоден компонент не імпортує `axios`, `apiClient` чи `storage.ts` напряму — тільки хуки з `api/hooks`.
 
-## Learn more
+Єдиний свідомий виняток — компонент `PostCard.tsx`, який сам викликає `useDeletePost`/`useUpdatePost`/`usePrefetchPostDetails`. Це узгоджується з конвенцією CLAUDE.md проєкту (хуки викликаються напряму в компоненті з деструктуризацією, без обгортання в контейнери) — тримати мутації в самому рядку списку простіше, ніж прокидати колбеки з батьківського екрана вниз.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Expo Go vs development build
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Проєкт вимагає **development build**, не Expo Go.
 
-## Join the community
+Причина — ланцюжок рішень: я обрав **MMKV** для локального сховища (див. нижче), а MMKV — нативний модуль (JSI/C++), якого немає у складі Expo Go. Тому й build — dev client.
 
-Join our community of developers creating universal apps.
+Додатково — `@gorhom/bottom-sheet` v5 та reanimated/gesture-handler у SDK 57 самі по собі сумісні з Expo Go, тож якби я обрав AsyncStorage — можна було б лишитись у Expo Go. Але вибір MMKV зроблено свідомо і він переважує зручність Expo Go (обґрунтування — нижче).
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## State manager
+
+**Без клієнтського state-менеджера** (Zustand/Redux/Jotai/Context) — і ось чому:
+
+- **Серверний стан** (пости, коментарі, автор) повністю на TanStack Query — це і є "стан" застосунку в 90% екранів, і дублювати його в Zustand означало б синхронізувати два джерела істини.
+- **UI-стан** — локальний і короткоживучий: текст пошуку, чи відкрита bottom sheet, значення полів форми. Він живе рівно в тому компоненті, де потрібен (`useState`), і не розшарований між далекими гілками дерева — тож підняття його в глобальне сховище нічого не вигравало б, лише додало б непрямоту.
+- Єдине, що умовно "глобальне" й пережиде рестарт застосунку — це персистентні дані (останній пошук, локальні мутації) — і для них є MMKV, а не in-memory стор.
+
+Якби у завданні з'явився, наприклад, спільний для кількох далеких екранів UI-стан (тема, вподобання, черга офлайн-дій) — я б взяв **Zustand**: мінімум боілерплейту, добре поєднується з persist-мідлваром на MMKV. Але зараз для нього немає реального кейсу.
+
+## Локальне сховище: AsyncStorage vs MMKV
+
+| | AsyncStorage | MMKV |
+|---|---|---|
+| API | асинхронне (Promise) | синхронне |
+| Продуктивність | повільніше (JSON over the bridge / JSI, але з накладними витратами Promise) | у рази швидше, читання/запис — мікросекунди |
+| Нативний код | немає — працює в Expo Go | JSI/C++ модуль — **потрібен dev build** |
+| Шифрування | немає з коробки | вбудоване (`encryptionKey`) |
+
+Обрав **MMKV**, тому що:
+
+1. Читання відбувається **синхронно й на кожному рендері списку** (мердж createdPosts/updatedPostsMap/deletedPostIds відбувається в `queryFn`, тобто на кожному `fetch`/`refetch` сторінки стрічки) — асинхронний AsyncStorage тут означав би зайвий `await` і мигання UI там, де воно не потрібне.
+2. Дані, що зберігаються (локальні мутації постів/коментарів, останній пошук) — не секретні, тож вбудоване шифрування MMKV — приємний бонус, а не вимога.
+3. Ціна вибору — dev build замість Expo Go — прийнятна, бо і так потрібен `@gorhom/bottom-sheet` + жести, з якими зручніше працювати в білді, де можна дебажити нативний рівень.
+
+Де б знадобився **expo-secure-store**: якби застосунок мав автентифікацію (access/refresh токени) — токени я б тримав саме там (апаратно підтримуваний Keychain/Keystore), а не в MMKV навіть із шифруванням — бо secure-store розв'язаний саме під короткі секрети, а не під об'єми даних. У цьому завданні автентифікації немає, тож secure-store не використовується.
+
+## Мердж локальних змін із сервером
+
+DummyJSON нічого не зберігає: `POST/PUT/DELETE` повертають 200 з "ніби"-об'єктом, але наступний `GET` завжди віддає початковий датасет. Тобто **джерело істини для мутацій — тільки клієнт**, і його потрібно тримати живим між перезапусками застосунку.
+
+**Що зберігається в MMKV** (`src/services/storage.ts`), 4 незалежні "таблиці":
+
+- `createdPosts` — масив постів, створених локально (мають від'ємний `id`, див. нижче);
+- `updatedPostsMap` — `{ [id]: Post }` — останній відредагований варіант серверного поста;
+- `deletedPostIds` — `number[]` — id серверних постів, які юзер видалив;
+- `localComments` — `{ [postId]: Comment[] }` — коментарі, додані локально.
+
+**Локальні пости мають від'ємний `id`** (`id: -Date.now()`, перевірка — `isLocalPost = (id) => id < 0`). DummyJSON видає лише додатні id, тож це дешевий і надійний спосіб відрізнити "цей пост існує тільки в мене на пристрої" від "цей пост є на сервері, я його просто відредагував/видалив локально" — без окремого прапорця чи UUID-мапінгу.
+
+**Реконсиляція** (`utils/postMerger.ts`, викликається з `postsService.ts` на кожен `queryFn` стрічки):
+
+1. Взяти сторінку постів із сервера.
+2. Кожен серверний пост підмінити на локально відредаговану версію, якщо вона є (`updatedPostsMap[post.id] ?? post`).
+3. На першій сторінці (`skip === 0`) без активного пошуку — доклеїти локально створені пости зверху (вони не існують на сервері, тому інших сторінок для них немає, і вони не повинні "спливати" на кожному `skip`).
+4. Відфільтрувати пости, id яких є в `deletedPostIds`.
+
+Те саме правило (підміна відредагованим, приховання видаленого) застосовується для одного поста в `useGetPost`, і аналогічний, спрощеніший мердж — для коментарів (`commentsService.ts`): локальні коментарі показуються поверх серверних, для локального поста (`isLocalPost`) — запит на сервер навіть не робиться, бо там просто нема чого питати.
+
+**Чому окреме сховище, а не персист самого кешу TanStack Query.** Обидва варіанти в завданні названі прийнятними, я обрав окреме сховище:
+
+- Персист усього query-кешу означав би тягнути на диск і `InfiniteData` зі сторінками стрічки, і плейсхолдери, і стан `pending`-мутацій — а реконсиляцію "видалений пост лишається прихованим навіть після рефетчу" довелось би робити так само вручну поверх відновленого кешу. Тобто mergePostsWithLocalData/updatedPostsMap все одно були б потрібні — просто над іншим сирим сховищем.
+- Окреме сховище — маленьке, предметно-орієнтоване (4 прості "таблиці"), його легко тестувати незалежно від React Query і не прив'язане до внутрішньої форми `InfiniteData`, яка може змінитись між мажорними версіями бібліотеки.
+- `invalidate`/`refetch` в TanStack Query тут означає буквально "перезапустити `queryFn`" — а `queryFn` сам відповідає за накладання локального шару на свіжу відповідь сервера. Тобто інвалідація і персист не конфліктують: інвалідація каже "піди спитай сервер ще раз", а мердж-шар гарантує, що відповідь однаково буде доповнена локальним станом.
+
+## TanStack Query
+
+### Дизайн query keys (`src/api/keys/`)
+
+```
+postKeys.all              → ['posts']
+postKeys.lists()          → ['posts', 'list']
+postKeys.list({ search }) → ['posts', 'list', { filters: { search } }]
+postKeys.details()        → ['posts', 'detail']
+postKeys.detail(id)       → ['posts', 'detail', id]
+postKeys.comments(id)     → ['posts', 'detail', id, 'comments']
+
+userKeys.all      → ['users']
+userKeys.detail(id) → ['users', 'detail', id]
+```
+
+Ієрархія навмисно "матрьошкова" — кожен наступний рівень включає попередній як префікс. Це дає точковий контроль над інвалідацією:
+
+- `invalidateQueries({ queryKey: postKeys.lists() })` зносить/рефетчить **усі** пошукові варіанти стрічки (з будь-яким `search`), не чіпаючи деталей і коментарів — саме це роблю в `onSettled` для create/update/delete поста.
+- `invalidateQueries({ queryKey: postKeys.detail(id) })` торкається тільки одного поста.
+- `commentKeys.list(postId)` навмисно **переюзає** `postKeys.comments(postId)`, а не заводить окремий корінь `['comments', postId]` — коментарі концептуально належать конкретному посту, і якби колись знадобилось знести весь піддерево поста одним махом (`postKeys.detail(id)`), коментарі теж мають під це підпадати.
+
+### staleTime / gcTime — різні для різних даних
+
+Значення зведені в одне місце — `src/api/queryTimes.ts` — і застосовані по одному на кожен хук, замість єдиного глобального значення. Орієнтир — питання з підказки завдання: *"наскільки ймовірно, що ці дані зміняться, поки користувач на них дивиться?"*
+
+| Дані | staleTime | gcTime | Чому |
+|---|---|---|---|
+| Стрічка (`useGetPosts`) | 1 хв | 10 хв | Найбільш "живі" дані — інші користувачі постять, і pull-to-refresh/refocus мають реальний сенс підтягувати нове. |
+| Деталі поста (`useGetPost`) | 10 хв | 30 хв | Поки юзер читає один пост, малоймовірно, що саме він зміниться — не рефетчимо даремно при refocus вікна. |
+| Коментарі (`useGetComments`) | 30 сек | 5 хв | Найволатильніші дані на екрані — нові коментарі можуть з'явитись від інших користувачів у будь-який момент. |
+| Автор (`useGetUser`) | 30 хв | 60 хв | Профіль автора в межах сесії практично статичний. |
+
+Глобальний дефолт у `QueryClient` (1 хв / 10 хв) лишається як розумний fallback "на випадок", якщо десь query створять без явних опцій — але кожен реальний хук вище його перевизначає.
+
+### Infinite query + prefetch/переюз кешу
+
+- `useGetPosts` — `useInfiniteQuery` з `getNextPageParam`, що рахує `skip + limit` і зупиняється, коли досягнуто `total` (класична offset-пагінація DummyJSON).
+- При тапі на "Details" (`onPressIn`, тобто ще до завершення анімації переходу) викликається `usePrefetchPostDetails(postId, userId)`, який **не** дублює запит самого поста — заздалегідь тягне лише те, чого точно бракує в кеші: автора (`userKeys.detail`) і коментарі (`commentKeys.list`).
+- Сам пост на екрані деталей не префетчиться окремим запитом — замість цього `useGetPost` віддає `placeholderData`, знайдений прямо в уже завантажених сторінках `postKeys.lists()` через `getQueriesData`. Тобто екран деталей рендериться **миттєво** даними зі стрічки, а мережевий запит (`apiClient.get`) все одно йде у фоні — і підмінює плейсхолдер точнішими даними, коли прийде відповідь.
+- Для локального поста (`id < 0`) `useGetPost` навіть не намагається бити по мережі марно: спочатку йде звичний запит (він поверне 404, бо такого id на сервері нема), і в `catch` повертається `findLocalPostById`.
+
+> Дрібниця для рев'юера: у `queryFn` в `useGetPost` є штучна затримка `delay(3000)` — це навмисно, щоб під час дев-демонстрації було видно різницю між миттєвим рендером з `placeholderData` і фоновим дотягуванням точних даних. У проді її, звісно, треба прибрати.
+
+## Optimistic updates + rollback
+
+Усі 4 мутації (`useCreatePost`, `useUpdatePost`, `useDeletePost`, `useCreateComment`) побудовані за одним каноничним патерном:
+
+```
+onMutate  → cancelQueries (не дати in-flight рефетчу перезаписати оптимізм)
+          → snapshot поточного кешу (getQueryData/getQueriesData)
+          → синхронний setQueryData з оптимістичним значенням
+          → запис того ж значення в MMKV (щоб пережило рестарт ще до відповіді сервера)
+          → повернути { snapshot, optimisticEntity } як context
+
+onError   → відновити кеш з context.snapshot
+          → відкотити MMKV-запис (deleteLocalPost/deleteLocalComment або
+            записати назад попередній updateLocalPost)
+          → Alert з поясненням
+
+onSettled → invalidateQueries на відповідному рівні ієрархії ключів
+```
+
+Кілька деталей, вартих пояснення:
+
+- **Що таке "invalidate" при мутації, яку сервер насправді не зберігає** (Челендж 2, прямо поставлене питання): `invalidateQueries` тут не "піди перевір, чи сервер зберіг" — сервер завідомо не зберіг. Це радше "перезапусти `queryFn` для консистентності": `queryFn` (через `postsService`/`commentsService`) сам накладе актуальний стан MMKV поверх свіжої (незміненої) відповіді сервера. Тобто інвалідація тут — спосіб гарантувати, що після мутації кеш і локальне сховище знову синхронізовані одним і тим самим шляхом коду, яким користується звичайний рендер, а не спосіб отримати "правду" від сервера.
+- **Update конкретного поста** (`useUpdatePost`) синхронізує одразу два місця кешу — `postKeys.detail(id)` і всі сторінки всіх варіантів `postKeys.lists()` (`setQueriesData`, бо активних пошукових запитів-ключів може бути кілька) — щоб і екран деталей, і рядок у стрічці показали нову назву/текст миттєво, без очікування `onSettled`.
+- **Delete** для вже локального (ще не засинхронізованого) поста в `onError` не намагається звертатись до сервера — просто повертає пост назад у MMKV, бо `deletePostRequest` для `id < 0` — no-op ще на рівні `postsService.deletePost`.
+- **Create** використовує оптимістичний `id: -Date.now()` — той самий "локальний" простір id, що й для реконсиляції вище, тож щойно створений пост одразу коректно бере участь у подальшому мерджі/редагуванні/видаленні як звичайний локальний пост.
+
+## Bottom sheet (@gorhom/bottom-sheet)
+
+Форма створення/редагування поста (`PostFormModal`) і форма коментаря (`CommentFormModal`) переведені на `@gorhom/bottom-sheet` v5:
+
+- Корінь застосунку обгорнутий у `GestureHandlerRootView` (`src/app/_layout.tsx`), інакше жести шита мовчки не працюють.
+- `BottomSheetModalProvider` — там само, вище `Stack`, бо модальні шити (на відміну від інлайнового `BottomSheet`) повинні жити в одному провайдері незалежно від того, з якого екрана їх викликали.
+- Використані саме бібліотечні обгортки — `BottomSheetScrollView`, `BottomSheetTextInput` — а не голі RN-компоненти: `BottomSheetScrollView` координує свій скрол із жестом перетягування самого шита (голий `ScrollView` перехоплював би жест і не давав шиту закритись свайпом), а `BottomSheetTextInput` інтегрований із внутрішнім керуванням фокусом/клавіатурою бібліотеки — без нього `keyboardBehavior="interactive"` поводився б неточно.
+- `keyboardBehavior="interactive"` + `keyboardBlurBehavior="restore"` + `android_keyboardInputMode="adjustResize"` — щоб шит плавно "їхав" за клавіатурою на обох платформах (тут і знадобився `react-native-keyboard-controller`, обгорнутий у корені через `KeyboardProvider`).
+- `snapPoints` фіксовані (`enableDynamicSizing={false}`) — `['90%']` для форми поста (два текстових поля + теги) і `['75%']` для форми коментаря (одне поле) — свідомо не auto-sizing, бо висота контенту стрибає разом із появою клавіатури, і авто-розмір у цьому сценарії "смикається".
+
+## Списки: FlatList vs FlashList
+
+Залишив **FlatList**, `@shopify/flash-list` не додавав. Обґрунтування:
+
+- Стрічка тут — сторінки по 30 постів через `useInfiniteQuery`, картки помірного й майже однакового розміру. FlashList дає відчутний виграш насамперед на дуже довгих/різнорозмірних списках із частими ремаунтами — тут цього навантаження немає.
+- Продуктивність забезпечена на рівні самого списку: стабільний `keyExtractor={(item) => String(item.id)}`, `onEndReachedThreshold={0.5}` разом із `hasNextPage/isFetchingNextPage`-гардом від дублюючих запитів під час скролу, і мемоізовані колбеки там, де `PostCard` міг би зайво ре-рендеритись.
+- Якби вимогою було відображати сотні-тисячі елементів без пагінації або рядки з дуже різною висотою (мультимедіа, розгортання) — це був би прямий кейс для FlashList, і я б його підключив без вагань. Тут це виглядало б як передчасна оптимізація під навантаження, якого немає.
+
+## Навігація: Expo Router vs React Navigation
+
+Обрав **Expo Router** (він побудований поверх React Navigation, тож вимозі "React Navigation" це не суперечить — просто інший шар над ним):
+
+- Файлова маршрутизація (`src/app/`) прибирає окремий файл-конфігурацію навігатора — для 4 екранів (`(tabs)/index`, `(tabs)/details`, `post-details` + кореневий `_layout`) це менше боілерплейту, ніж ручне `createNativeStackNavigator`.
+- Типізовані роути (`experiments.typedRoutes` у `app.json`) дають перевірку `router.push({ pathname, params })` на етапі компіляції — саме так у `PostCard` передаються `postId`/`userId` на `/post-details`.
+- Deep linking і `scheme` (`socialfeedapp`) налаштовуються з коробки без ручного `linking`-конфіга.
+
+Ціна цього вибору — трохи менше прямого контролю над низькорівневими опціями навігатора порівняно з "голим" React Navigation, але для обсягу цього завдання це не було потрібно.
+
+## Запуск проєкту
+
+Потрібен **development build** (детальніше — [вище](#expo-go-vs-development-build)), Expo Go не підтримає MMKV.
+
+```bash
+npm install
+
+# Зібрати й запустити dev-клієнт локально (Android/iOS SDK мають бути налаштовані)
+npx expo run:android
+# або
+npx expo run:ios
+
+# Далі — звичайний Metro-цикл: dev-клієнт уже стоїть на пристрої/емуляторі
+npx expo start
+```
+
+Альтернатива без локального SDK — зібрати dev-клієнт через EAS:
+
+```bash
+npx eas build --profile development --platform android
+```
+
+і встановити готовий білд на пристрій/емулятор, після чого так само `npx expo start` для гарячого перезавантаження JS.
+
+Змінна оточення `EXPO_PUBLIC_API_URL` (base URL DummyJSON, напр. `https://dummyjson.com`) читається в `src/api/client.ts` з `.env`.
+
+## Свідомо зрізані кути / чого немає
+
+Чесно про те, що не встигло або навмисно спрощено:
+
+- **Персист самого TanStack Query кешу** не робив (див. [обґрунтування вище](#мердж-локальних-змін-із-сервером)) — обрав окреме MMKV-сховище замість цього.
+- **Сортування/фільтр** у стрічці — у сховищі є місце під "останній фільтр/сортування" концептуально, але сама фіча в UI не реалізована — є тільки пошук за заголовком/текстом (з debounce 450мс).
+- **Бонуси** з розділу "не обов'язково" реалізовані частково: debounce пошуку та кастомні API-хуки — так; skeleton loaders (замість них — `ActivityIndicator`), toast/snackbar (замість них — `Alert`), явний перемикач теми, swipe-жести на рядках стрічки — ні. Тема (`userInterfaceStyle: "automatic"`) підхоплюється системна, окремого UI-перемикача немає.
+- **Тестів немає** — для обсягу тестового завдання пріоритет віддано глибині TanStack/optimistic-логіки, а не тестовому покриттю.
+- Штучна затримка `delay(3000)` у `useGetPost` — навмисна демонстраційна вставка (див. примітку в розділі TanStack Query вище), не продакшн-код.
