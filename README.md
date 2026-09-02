@@ -4,6 +4,7 @@
 
 ## Зміст
 
+- [Швидкий старт (Environment Setup)](#швидкий-старт-environment-setup)
 - [Стек і чому саме так](#стек-і-чому-саме-так)
 - [Структура проєкту](#структура-проєкту)
 - [Expo Go vs development build](#expo-go-vs-development-build)
@@ -17,6 +18,18 @@
 - [Навігація: Expo Router vs React Navigation](#навігація-expo-router-vs-react-navigation)
 - [Запуск проєкту](#запуск-проєкту)
 - [Свідомо зрізані кути / чого немає](#свідомо-зрізані-кути--чого-немає)
+
+## Швидкий старт (Environment Setup)
+
+```bash
+cp .env.example .env
+npm install
+npx expo start
+```
+
+`.env.example` містить `EXPO_PUBLIC_API_URL` — базовий URL DummyJSON API. У прикладі вже підставлено робоче публічне значення (`https://dummyjson.com`), тож копіювання без правок теж підходить; крім того, у `src/api/client.ts` є fallback на це саме значення, якщо `.env` раптом відсутній.
+
+> Це мінімальний набір команд для встановлення залежностей і старту Metro. Проєкту потрібен **development build** (MMKV, деталі — [нижче](#expo-go-vs-development-build)) — команди для збірки dev-клієнта дивись у розділі [Запуск проєкту](#запуск-проєкту).
 
 ## Стек і чому саме так
 
