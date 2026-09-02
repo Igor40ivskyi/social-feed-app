@@ -8,8 +8,6 @@ import { Post } from '@/types/post';
 import { InfiniteData, QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 const findPlaceholderPost = (queryClient: QueryClient, postId: number): Post | undefined => {
   if (postId < 0) {
     return findLocalPostById(postId);
@@ -35,8 +33,6 @@ export const useGetPost = (postId: number) => {
   return useQuery({
     queryKey: postKeys.detail(postId),
     queryFn: async () => {
-      await delay(3000);
-
       try {
         const { data } = await apiClient.get<Post>(apiEndpoints.posts.detail(postId));
         return getUpdatedPostsMap()[postId] ?? data;
