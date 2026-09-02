@@ -7,6 +7,9 @@ export const apiEndpoints = {
     delete: (id: number | string) => `/posts/${id}` as const,
     comments: (id: number | string) => `/posts/${id}/comments` as const,
   },
+  comments: {
+    create: '/comments/add',
+  },
   users: {
     detail: (id: number | string) => `/users/${id}` as const,
   },

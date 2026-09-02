@@ -1,7 +1,7 @@
-import { postKeys } from '@/api/keys/postKeys';
+import { commentKeys } from '@/api/keys/commentKeys';
 import { userKeys } from '@/api/keys/userKeys';
-import { fetchPostCommentsFromApi } from '@/api/services/postsApi';
 import { fetchUserFromApi } from '@/api/services/usersApi';
+import { getCommentsWithLocalSync } from '@/services/commentsService';
 import { useQueryClient } from '@tanstack/react-query';
 
 export const usePrefetchPostDetails = () => {
@@ -14,8 +14,8 @@ export const usePrefetchPostDetails = () => {
     });
 
     queryClient.prefetchQuery({
-      queryKey: postKeys.comments(postId),
-      queryFn: () => fetchPostCommentsFromApi(postId),
+      queryKey: commentKeys.list(postId),
+      queryFn: () => getCommentsWithLocalSync(postId),
     });
   };
 };

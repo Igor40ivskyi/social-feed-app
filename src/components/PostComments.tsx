@@ -1,18 +1,28 @@
-import { useGetPostComments } from '@/api/hooks/useGetPostComments';
+import { useCreateComment } from '@/api/hooks/useCreateComment';
+import { useGetComments } from '@/api/hooks/useGetComments';
 import { Comment } from '@/components/Comment';
+import { CommentFormModal } from '@/components/CommentFormModal';
 import { colors } from '@/styles/global';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type PostCommentsProps = {
   postId: number;
 };
 
 export function PostComments({ postId }: PostCommentsProps) {
-  const { data, isLoading, isError } = useGetPostComments(postId);
+  const { data, isLoading, isError } = useGetComments(postId);
+  const { mutate: createComment, isPending: isCreatingComment } = useCreateComment(postId);
+  const [isFormVisible, setFormVisible] = useState(false);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Comments</Text>
+      <View style={styles.header}>
+        <Text style={styles.sectionTitle}>Comments</Text>
+        <Pressable style={styles.addButton} onPress={() => setFormVisible(true)}>
+          <Text style={styles.addButtonText}>Add Comment</Text>
+        </Pressable>
+      </View>
 
       {isLoading && (
         <View style={styles.centered}>
@@ -35,6 +45,16 @@ export function PostComments({ postId }: PostCommentsProps) {
       {!isLoading &&
         !isError &&
         data?.comments.map((comment) => <Comment key={comment.id} comment={comment} />)}
+
+      <CommentFormModal
+        visible={isFormVisible}
+        isSubmitting={isCreatingComment}
+        onClose={() => setFormVisible(false)}
+        onSubmit={(body) => {
+          createComment(body);
+          setFormVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -43,11 +63,27 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 20,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 12,
+  },
+  addButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  addButtonText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   centered: {
     alignItems: 'center',

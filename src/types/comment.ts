@@ -9,3 +9,5 @@ export type Comment = {
     fullName: string;
   };
 };
+
+export type LocalComment = Comment;

@@ -42,3 +42,7 @@ export const fetchPostCommentsFromApi = async (postId: number): Promise<Comments
   const { data } = await apiClient.get<CommentsResponse>(apiEndpoints.posts.comments(postId));
   return data;
 };
+
+export const createCommentApi = async (postId: number, body: string, userId: number): Promise<void> => {
+  await apiClient.post(apiEndpoints.comments.create, { postId, body, userId });
+};

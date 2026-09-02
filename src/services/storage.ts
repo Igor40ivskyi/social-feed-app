@@ -1,3 +1,4 @@
+import { LocalComment } from '@/types/comment';
 import { Post } from '@/types/post';
 import { createMMKV } from 'react-native-mmkv';
 
@@ -6,6 +7,9 @@ const storage = createMMKV();
 const CREATED_POSTS_KEY = 'createdPosts';
 const UPDATED_POSTS_KEY = 'updatedPosts';
 const DELETED_POST_IDS_KEY = 'deletedPostIds';
+const LOCAL_COMMENTS_KEY = 'localComments';
+
+type LocalCommentsMap = Record<number, LocalComment[]>;
 
 export const getCreatedPosts = (): Post[] => {
   const json = storage.getString(CREATED_POSTS_KEY);
@@ -52,4 +56,29 @@ export const addDeletedPostId = (id: number): void => {
   if (!ids.includes(id)) {
     storage.set(DELETED_POST_IDS_KEY, JSON.stringify([...ids, id]));
   }
+};
+
+const getLocalCommentsMap = (): LocalCommentsMap => {
+  const json = storage.getString(LOCAL_COMMENTS_KEY);
+  return json ? JSON.parse(json) : {};
+};
+
+export const getLocalCommentsByPostId = (postId: number): LocalComment[] => {
+  return getLocalCommentsMap()[postId] ?? [];
+};
+
+export const saveLocalComment = (comment: LocalComment): void => {
+  const map = getLocalCommentsMap();
+  map[comment.postId] = [...(map[comment.postId] ?? []), comment];
+  storage.set(LOCAL_COMMENTS_KEY, JSON.stringify(map));
+};
+
+export const deleteLocalComment = (postId: number, commentId: number): void => {
+  const map = getLocalCommentsMap();
+  if (!map[postId]) {
+    return;
+  }
+
+  map[postId] = map[postId].filter((comment) => comment.id !== commentId);
+  storage.set(LOCAL_COMMENTS_KEY, JSON.stringify(map));
 };
